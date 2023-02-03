@@ -1,70 +1,193 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Exchange Server Side Rendering
 
-## Available Scripts
+A brief description of what this project perform Server Side Rendering
 
-In the project directory, you can run:
 
-### `npm start`
+## bable setup
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```npm i webpack webpack-cli webpack-node-externals @babel/core babel-loader @babel/preset-env @babel/preset-react fs path npm-run-all nodemon express ```
+## Step 1: Creating the React App and Modifying the App Component
 
-### `npm test`
+Let’s call the app, react-ssr-example:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```npx create-react-app react-ssr-example```
 
-### `npm run build`
+Open the App.js file in the src directory
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+import React from 'react';
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+function App() {
+  return (
+    <div className="App">
+      <header className="App-header">
+        {/* <img src={logo} className="App-logo" alt="logo" /> */}
+        <p>
+          Edit <code>src/App.js</code> and save to reload.
+        </p>      
+        <h1>       
+          WELCOME HERE
+        </h1>
+    
+      </header>
+    </div>
+  );
+}
 
-### `npm run eject`
+export default App;
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Let’s open the index.js file in the src directory:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```
+ReactDOM.render( <React.StrictMode> <App /> </React.StrictMode>, document.getElementById('root'));
 
-## Learn More
+replace with 
+ 
+ReactDOM.hydrate( <React.StrictMode> <App /> </React.StrictMode>, document.getElementById('root'));
+ ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App.js';
+import reportWebVitals from './reportWebVitals.js';
 
-### Code Splitting
+// const root = ReactDOM.createRoot(document.getElementById('root'));
+ReactDOM.hydrate(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
+);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
 
-### Analyzing the Bundle Size
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Step 2 — Creating an Express Server and Rendering the App Component
 
-### Making a Progressive Web App
+create a new server folder in the project’s root directory:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+inside of the server folder, create a new index.js file that will contain the Express server code:
 
-### Advanced Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```
+import path from 'path';
+import fs from 'fs';
 
-### Deployment
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
+import express from 'express';
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+import App from '../src/App.js';
+const PORT =  3006;
+const app = express();
 
-### `npm run build` fails to minify
+app.get('/', (req, res) => {
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+    const app = ReactDOMServer.renderToString(<App />);
+    const indexFile = path.resolve('./build/index.html');
+  
+    fs.readFile(indexFile, 'utf8', (err, data) => {
+      if (err) {
+        console.error('Something went wrong:', err);
+        return res.status(500).send('Oops, better luck next time!');
+      }
+  
+      return res.send(
+        data.replace('<div id="root"></div>', `<div id="root">${app}</div>`)
+      );
+    });
+  });
+  
+  // app.use(express.static('./build'));
+  
+  app.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+  });
+```
+
+-  Express is used to serve contents from the build directory as static files.
+* ReactDOMServer’s renderToString is used to render the app to a static HTML string.
++ The static index.html file from the built client app is read. The app’s static content is injected into the <div> with an id of "root". This is sent as a response to the request.
+## Step 3 — Configuring webpack, Babel, and npm Scripts
+
+```
+To avoid  conflicts, includes this installation step.
+webpack, webpack-cli, webpack-node-externals, @babel/core, babel-loader, @babel/preset-env, @babel/preset-react
+```
+
+
+` Create a weback.server.js file to root directory`
+
+```
+import path from "path"
+import nodeExternals from 'webpack-node-externals'
+
+export const serverConfig = {
+  entry: './server/index.js',
+  target: 'node',
+  externals: [nodeExternals()],
+  output: {
+    path: path.resolve('server-build'),
+    filename: 'index.js'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: 'babel-loader'
+      }
+    ]
+  }
+};
+```
+
+Next, create a new Babel configuration file in the project’s root directory:
+
+`Create babelrc.json file to root directory`
+```
+{
+  "presets": [
+    "@babel/preset-env",
+    "@babel/preset-react"
+  ]
+}
+```
+
+With this configuration, the transpiled server bundle will be output to the server-build folder in a file called index.js.
+## Step 4 : Update package.json
+
+Now, visit package.json
+
+```
+Note: You do not need to modify the existing "start", "build", "test", and "eject" scripts in the package.json file.
+```
+
+```
+  "scripts": {
+    
+    "dev:build-server": "NODE_ENV=development webpack --config webpack.server.js    --mode=development -w",
+    "dev:start": "nodemon ./server-build/index.js",
+    "dev": "npm-run-all --parallel build dev:*"
+  },
+```
+```
+npm install nodemon --save-dev
+npm install npm-run-all --save-dev
+```
+
+```
+npm run dev
+```
